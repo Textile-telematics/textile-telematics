@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import paho.mqtt.client as mqtt
+import credentials
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, reason_code, properties):
@@ -18,9 +19,9 @@ def on_message(client, userdata, msg):
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
-mqttc.username_pw_set(username="tue",password="runningwithscissors")
+mqttc.username_pw_set(username=credentials.mqtt_username,password=credentials.mqtt_password)
 #mqttc.tls_set()
-mqttc.connect("slab.org", 1883, 60)
+mqttc.connect(credentials.mqtt_server, 1883, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.

@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import paho.mqtt.client as mqtt
 import json, math
+
+import credentials
 from collections import deque
 
 counter = 0
@@ -34,8 +36,8 @@ blocks = [[
 blocksz = len(blocks[0][1])
 
 def bjorklund(steps, pulses):
-    steps = int(steps)
-    pulses = int(pulses)
+    steps = int(steps) #128
+    pulses = int(pulses) #delta time below 32
     if pulses > steps:
         raise ValueError    
     pattern = []    
@@ -44,6 +46,7 @@ def bjorklund(steps, pulses):
     divisor = steps - pulses
     remainders.append(pulses)
     level = 0
+    # Euclidean Algorithm, finding the greatest common denominator
     while True:
         counts.append(divisor // remainders[level])
         remainders.append(divisor % remainders[level])
@@ -80,7 +83,7 @@ def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
     if msg.topic == '/tc2/footswitch':
         delta = json.loads(msg.payload)
-        pulses = min(int(math.log(delta) * 10),32)
+        pulses = min(int(math.log(delta) * 10),32) #the delta time from the previous footswitch press
         steps = 128
         print("delta", delta, "pulses", pulses)
         bjork = bjorklund(steps,pulses)
@@ -100,9 +103,9 @@ def on_message(client, userdata, msg):
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
-mqttc.username_pw_set(username="tue",password="runningwithscissors")
+mqttc.username_pw_set(username=credentials.mqtt_username,password=credentials.mqtt_password)
 #mqttc.tls_set()
-mqttc.connect("slab.org", 1883, 60)
+mqttc.connect(credentials.mqtt_server, 1883, 60)
 mqttc.publish("/pattern", "0")
 
 # Blocking call that processes network traffic, dispatches callbacks and

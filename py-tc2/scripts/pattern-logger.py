@@ -3,6 +3,7 @@
 from PIL import Image
 import paho.mqtt.client as mqtt
 import os
+import credentials
 
 fn = "log.png"
 width = 1320
@@ -45,9 +46,9 @@ def on_message(client, userdata, msg):
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
-mqttc.username_pw_set(username="tue",password="runningwithscissors")
+mqttc.username_pw_set(username=credentials.mqtt_username,password=credentials.mqtt_password)
 #mqttc.tls_set()
-mqttc.connect("slab.org", 1883, 60)
+mqttc.connect(credentials.mqtt_server, 1883, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
