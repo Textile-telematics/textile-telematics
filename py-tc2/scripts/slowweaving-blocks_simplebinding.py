@@ -143,7 +143,7 @@ def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
     if msg.topic == '/tc2/footswitch':
         delta = json.loads(msg.payload)
-        pulses = min(int(math.log(delta) * 10),32) #the delta time from the previous footswitch press
+        pulses = min(int(math.log(math.log(delta)) * 10),32) #the delta time from the previous footswitch press
         steps = 128
         print("delta", delta, "pulses", pulses)
         bjork = bjorklund(steps,pulses)
