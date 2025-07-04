@@ -17,7 +17,7 @@ blocks = [[
 '  x    x    x    x    x    x    x    x  ',
 '    x    x    x    x    x    x    x    x',
 ' x    x    x    x    x    x    x    x   ',
-'   x    x    x    x    x    x    x    x ',
+'   x    x    x    x    x    x    x    x '
 ],
 [
 '            x x x x xxxxxxxxxxxxxxxxxxxx',
@@ -29,7 +29,7 @@ blocks = [[
 '            x x x x xxxxxxxxxxxxxxxxxxxx',
 'xxxxxxxxxxxxxxxxxxxx x x x x            ',
 '            x x x x xxxxxxxxxxxxxxxxxxxx',
-'xxxxxxxxxxxxxxxxxxxx x x x x            ',
+'xxxxxxxxxxxxxxxxxxxx x x x x            '
 ]
 ]
 
