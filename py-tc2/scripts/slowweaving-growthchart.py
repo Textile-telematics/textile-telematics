@@ -154,7 +154,7 @@ def on_message(client, userdata, msg):
         # (v - a) * (d - c) / (b - a) + c
         pattern = ""
         #steps = 128
-        #print("delta", delta, "pulses", pulses)
+        print("delta", delta, "pulses", pulses)
         #bjork = bjorklund(steps,pulses)
         #print(bjork)
         # seq = deque(bjork)
@@ -173,7 +173,7 @@ def on_message(client, userdata, msg):
         pattern = "".join(map(lambda x: "1" if x == 'x' else "0", pattern))
         #pattern = pattern * 2
         pattern = pattern[:1320]
-        # print("sending", pattern)
+        print("sending", pattern)
         client.publish("/pattern", pattern)
         counter = counter + 1
 
