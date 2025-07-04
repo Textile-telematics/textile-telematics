@@ -33,7 +33,7 @@ blocks = [[
 ]
 ]
 
-blocksz = len(blocks[0][1])
+blocksz = len(blocks[0])
 
 def bjorklund(steps, pulses):
     steps = int(steps) #128
