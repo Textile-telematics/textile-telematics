@@ -152,7 +152,7 @@ def on_message(client, userdata, msg):
         maximum = 32
         pulses = min(int((delta*1.2*(maximum-minimum))/((upper_limit-lower_limit)+minimum)), maximum)  # the delta time from the previous footswitch press
         # (v - a) * (d - c) / (b - a) + c
-        pattern = []
+        pattern = ""
         #steps = 128
         #print("delta", delta, "pulses", pulses)
         #bjork = bjorklund(steps,pulses)
