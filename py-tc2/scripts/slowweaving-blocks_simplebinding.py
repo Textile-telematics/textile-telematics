@@ -147,7 +147,7 @@ def on_message(client, userdata, msg):
         steps = 128
         print("delta", delta, "pulses", pulses)
         bjork = bjorklund(steps,pulses)
-        # print(bjork)
+        print(bjork)
         # seq = deque(bjork)
         # seq.rotate(counter)
         # bjork = list(seq)
