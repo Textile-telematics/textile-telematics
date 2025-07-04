@@ -148,7 +148,7 @@ def on_message(client, userdata, msg):
         lower_limit = 8
         minimum = 0
         maximum = 32
-        pulses = min(int(delta - lower_limit)*(maximum-minimum)/((upper_limit-lower_limit)+minimum), maximum)  # the delta time from the previous footswitch press
+        pulses = min(int((delta*(maximum-minimum))/((upper_limit-lower_limit)+minimum), maximum)  # the delta time from the previous footswitch press
         # (v - a) * (d - c) / (b - a) + c
         steps = 128
         print("delta", delta, "pulses", pulses)
