@@ -80,6 +80,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
 def on_message(client, userdata, msg):
     global counter
     print("counter", counter)
+    print("blocksz", blocksz)
     print(msg.topic+" "+str(msg.payload))
     if msg.topic == '/tc2/footswitch':
         delta = json.loads(msg.payload)
@@ -97,7 +98,7 @@ def on_message(client, userdata, msg):
         # seq = deque(bjork)
         # seq.rotate(counter)
         # bjork = list(seq)
-        pattern = "".join(map(lambda x: blocks[0][counter % blocksz] if x else blocks[1][counter % blocksz], bjork))
+        pattern = "".join(map(lambda x: blocks[0][(counter % blocksz)] if x else blocks[1][(counter % blocksz)], bjork))
         pattern = "".join(map(lambda x: "1" if x == 'x' else "0", pattern))
         pattern = pattern * 2
         pattern = pattern[:1320]
