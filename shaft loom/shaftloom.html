@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>MQTT Weaving Draft</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        h3 {
+            margin: 4px 0;
+        }
+
+        /* --- Overall draft layout --- */
+        #draft {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .grid {
+            display: grid;
+            gap: 3px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            border: 0;
+            margin: 1px;
+        }
+
+        .cell {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #aaa;
+        }
+
+        .indicator {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #f00;
+        }
+
+        .active {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #f00;
+            background-color: #f00;
+        }
+
+        .up {
+            background: black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Weaving Draft</h2>
+
+    <div id="draft">
+
+        <!-- Top Left -->
+        <div>
+            <h3>Tie-Up</h3>
+            <div id="tieup" class="grid"></div>
+        </div>
+
+        <!-- Top Right -->
+        <div>
+            <h3>Threading</h3>
+            <div id="threading" class="grid"></div>
+        </div>
+
+        <!-- Bottom Left -->
+        <div>
+            <h3>Treadling</h3>
+            <div id="treadling" class="grid"></div>
+        </div>
+
+        <!-- Bottom Right -->
+        <div>
+            <h3>Drawdown</h3>
+            <div id="drawdown" class="grid"></div>
+        </div>
+
+    </div>
+    <hr />
+    <div>
+        <button id="sendPick">Send</button>
+        <button id="prevPick">Prev</button>
+        <button id="nextPick">Next</button>
+    </div>
+    <div>
+        <button id="saveWIF">Save</button>
+        <input type="file" id="loadWIF" accept=".txt">
+    </div>
+
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script>
+        /* ================= CONFIG ================= */
+        const SHAFTS = 8;
+        const TREADLES = 6;
+        const WARPS = 32;
+        const PICKS = 6;
+
+        let active_weft = 0;
+
+        let drawdown_rows = [];
+
+        // const MQTT_URL = 'wss://slab.org:8883/mqtt';
+        const MQTT_URL = 'ws://slab.org:8083/mqtt';
+        const TOPIC = 'weaving/draft/full';
+        let mqtt_password = undefined;
+        let password_entered = false;
+
+        const cookie = /mqtt_pass=(\w+)/.exec(window.document.cookie);
+        if (cookie) {
+            mqtt_password = cookie[1];
+        }
+        if (typeof password === 'undefined') {
+            mqtt_password = prompt('Please enter MQTT server password');
+            password_entered = true;
+        }
+
+        /* ================= MQTT ================= */
+        const client = mqtt.connect(MQTT_URL, { username: "alpaca", password: mqtt_password });
+        client.on('connect', () => {
+            client.subscribe(TOPIC);
+            if (password_entered) {
+                document.cookie = 'mqtt_pass=' + mqtt_password;
+            }
+
+        });
+
+        client.on('disconnect', x => console.log("disconnect: " + x));
+        /* ================= DATA ================= */
+        /* threading[warp][shaft] */
+        let threading = Array.from({ length: WARPS }, () => Array(SHAFTS).fill(0));
+        let tieup = Array.from({ length: SHAFTS }, () => Array(TREADLES).fill(0));
+        let treadling = Array.from({ length: PICKS }, () => Array(TREADLES).fill(0));
+
+        /* --- default plain weave --- */
+        for (let w = 0; w < WARPS; w++) threading[w][w % 2] = 1;
+        for (let t = 0; t < TREADLES; t++) tieup[t % 2][t] = 1;
+        for (let p = 0; p < PICKS; p++) treadling[p][p % 2] = 1;
+
+        /* ================= HELPERS ================= */
+        function publish() {
+            client.publish(TOPIC, JSON.stringify({ threading, tieup, treadling }));
+        }
+
+        function onDraftChange() {
+            publish();
+            drawDrawdown();
+        }
+
+        /* ================= THREADING (SHAFTS × WARPS) ================= */
+        function buildThreading(container) {
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${WARPS}, 20px)`;
+
+            for (let s = 0; s < SHAFTS; s++) {
+                for (let w = 0; w < WARPS; w++) {
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = !!threading[w][s];
+
+                    cb.onchange = () => {
+                        for (let i = 0; i < SHAFTS; i++) threading[w][i] = 0;
+                        threading[w][s] = cb.checked ? 1 : 0;
+                        onDraftChange();
+                    };
+
+                    container.appendChild(cb);
+                }
+            }
+        }
+
+        /* ================= GENERIC GRID ================= */
+        function buildGrid(container, rows, cols, data) {
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = !!data[r][c];
+
+                    cb.onchange = () => {
+                        data[r][c] = cb.checked ? 1 : 0;
+                        onDraftChange();
+                    };
+
+                    container.appendChild(cb);
+                }
+            }
+        }
+
+        /* ================= DRAW DOWN ================= */
+        function drawDrawdown() {
+            drawdown.innerHTML = '';
+            drawdown.style.gridTemplateColumns = `repeat(${WARPS + 1}, 20px)`;
+            drawdown_rows = [];
+            for (let p = 0; p < PICKS; p++) {
+                let drawdown_row = "";
+                for (let w = 0; w < WARPS; w++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    let lifted = false;
+
+                    for (let t = 0; t < TREADLES; t++) {
+                        if (!treadling[p][t]) continue;
+
+                        for (let s = 0; s < SHAFTS; s++) {
+                            if (threading[w][s] && tieup[s][t]) {
+                                lifted = true;
+                            }
+                        }
+                    }
+
+                    if (lifted) {
+                        cell.classList.add('up');
+                        drawdown_row += "1";
+                    }
+                    else {
+                        drawdown_row += "0";
+                    }
+                    drawdown.appendChild(cell);
+                }
+                const indicator = document.createElement('div');
+                indicator.className = 'indicator';
+                indicator.id = "indicator" + p;
+
+                drawdown.appendChild(indicator);
+                drawdown_rows.push(drawdown_row);
+            }
+            update_active();
+        }
+
+        function update_active() {
+            const active = active_weft % PICKS;
+            for (let i = 0; i < PICKS; ++i) {
+                const indicator = document.getElementById("indicator" + i);
+                if (i == active_weft) {
+                    console.log("aha")
+                    indicator.classList.add("active");
+                }
+                else {
+                    indicator.classList.remove("active");
+                }
+            }
+        }
+
+        function send_active() {
+            let pattern = drawdown_rows[active_weft];
+            console.log("sending: " + pattern);
+            client.publish("/pattern", pattern);
+        }
+
+        // Convert grid data to WIF string
+        function exportWIF() {
+            function serialize(grid) {
+                return grid.map(row => row.join(',')).join(';');
+            }
+
+            return `<draft>
+<shafts>${SHAFTS}</shafts>
+<treadles>${TREADLES}</treadles>
+<warps>${WARPS}</warps>
+<picks>${PICKS}</picks>
+<threading>${serialize(threading)}</threading>
+<tieup>${serialize(tieup)}</tieup>
+<treadling>${serialize(treadling)}</treadling>
+</draft>`;
+        }
+
+        // Parse WIF string and populate data
+        function importWIF(wifText) {
+            function parseGrid(str) {
+                return str.trim().split(';').map(row => row.split(',').map(Number));
+            }
+
+            const threadingMatch = wifText.match(/<threading>([\s\S]*?)<\/threading>/);
+            const tieupMatch = wifText.match(/<tieup>([\s\S]*?)<\/tieup>/);
+            const treadlingMatch = wifText.match(/<treadling>([\s\S]*?)<\/treadling>/);
+
+            if (threadingMatch && tieupMatch && treadlingMatch) {
+                threading = parseGrid(threadingMatch[1]);
+                tieup = parseGrid(tieupMatch[1]);
+                treadling = parseGrid(treadlingMatch[1]);
+
+                buildThreading(threadingDiv);
+                buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
+                buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+                drawDrawdown();
+            } else {
+                alert("Invalid WIF file");
+            }
+        }
+
+        document.getElementById('sendPick').onclick = () => {
+            send_active();
+        };
+        document.getElementById('nextPick').onclick = () => {
+            active_weft++;
+            if (active_weft >= PICKS) {
+                active_weft = 0;
+            }
+            update_active();
+            send_active();
+        };
+        document.getElementById('prevPick').onclick = () => {
+            active_weft--;
+            if (active_weft < 0) {
+                active_weft = PICKS - 1;
+            }
+            update_active();
+            send_active();
+        };
+
+
+        // Save WIF
+        document.getElementById('saveWIF').onclick = () => {
+            const wif = exportWIF();
+            const blob = new Blob([wif], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'draft.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // Load WIF
+        document.getElementById('loadWIF').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => importWIF(evt.target.result);
+            reader.readAsText(file);
+        };
+
+        /* ================= INIT ================= */
+        const threadingDiv = document.getElementById('threading');
+        const tieupDiv = document.getElementById('tieup');
+        const treadlingDiv = document.getElementById('treadling');
+        const drawdown = document.getElementById('drawdown');
+
+        buildThreading(threadingDiv);
+        buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
+        buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+        drawDrawdown();
+
+        /* ================= MQTT RECEIVE ================= */
+        client.on('message', (_, msg) => {
+            const data = JSON.parse(msg.toString());
+            if (!data.threading) return;
+
+            threading = data.threading;
+            tieup = data.tieup;
+            treadling = data.treadling;
+
+            buildThreading(threadingDiv);
+            buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
+            buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+            drawDrawdown();
+        });
+    </script>
+</body>
+
+</html>
