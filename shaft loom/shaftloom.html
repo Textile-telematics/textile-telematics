@@ -153,7 +153,7 @@
         const PICKS = parseInt(params.get("picks")) || 12;
         const WARPS = parseInt(params.get("warps")) || 32;
 
-        let active_weft = PICKS-1;
+        let active_weft = PICKS;
 
         let drawdown_rows = [];
 
@@ -306,7 +306,7 @@
 
         function advance(i) {
             active_weft -= i;
-            active_weft = active_weft % PICKS;
+            active_weft = ((active_weft % PICKS) + PICKS) % PICKS;
             update_active();
         }
 
@@ -524,8 +524,8 @@
             }
             else if (topic == "/tc2/footswitch") {
                 console.log("footswitch!")
-                send_active();
                 advance(1);
+                send_active();
             }
         });
     </script>
