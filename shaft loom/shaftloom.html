@@ -1,39 +1,20 @@
 <!-- Distributed under the terms of the AGPLv3 -->
+<!-- Distributed under the terms of the AGPLv3 -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <title>MQTT Weaving Draft</title>
 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://unpkg.com/mathjs@11/lib/browser/math.js"></script>
+
     <style>
-        body {
-            font-family: sans-serif;
-        }
-
-        h3 {
-            margin: 4px 0;
-        }
-
-        /* --- Overall draft layout --- */
-        #draft {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            grid-template-rows: auto 1fr;
-            gap: 16px;
-            align-items: start;
-        }
-
-        .grid {
-            display: grid;
-            gap: 3px;
-        }
-
         input[type="checkbox"] {
             width: 20px;
             height: 20px;
-            border: 0;
-            margin: 1px;
         }
 
         .cell {
@@ -42,106 +23,128 @@
             border: 1px solid #aaa;
         }
 
+        .up {
+            background: black;
+        }
+
         .indicator {
             width: 20px;
             height: 20px;
-            border: 1px solid #f00;
+            border: 1px solid red;
         }
 
         .active {
-            width: 20px;
-            height: 20px;
-            border: 1px solid #f00;
-            background-color: #f00;
-        }
-
-        .up {
-            background: black;
+            background: red;
         }
     </style>
 </head>
 
-<body>
+<body class="bg-gray-50 text-gray-900 p-4 font-sans">
 
-    <h2>Weaving Draft</h2>
+    <!-- ================= HEADER ================= -->
+    <header class="mb-4">
+        <h2 class="text-2xl font-semibold mb-3">Weaving Draft</h2>
 
-    <div id="draft">
+        <div class="flex flex-wrap gap-2 items-center">
+            <button id="sendPick" class="px-3 py-1 bg-blue-600 text-white rounded">Send</button>
+            <button id="prevPick" class="px-3 py-1 bg-gray-700 text-white rounded">Prev</button>
+            <button id="nextPick" class="px-3 py-1 bg-gray-700 text-white rounded">Next</button>
 
-        <!-- Top Left -->
-        <div>
-            <h3>Tie-Up</h3>
-            <div id="tieup" class="grid"></div>
+            <div class="ml-4 flex gap-2 items-center">
+                <button id="saveWIF" class="px-3 py-1 bg-gray-900 text-white rounded">Save</button>
+                <input type="file" id="loadWIF" accept=".txt"
+                    class="text-sm file:bg-gray-200 file:px-2 file:py-1 file:rounded">
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= DRAFT ================= -->
+    <main class="grid grid-cols-[auto_1fr] gap-6 items-start">
+
+        <!-- LEFT COLUMN -->
+        <div class="flex flex-col gap-6">
+
+            <section>
+                <h3 class="font-semibold mb-1">Tie-Up</h3>
+                <div id="tieup" class="grid gap-[3px]"></div>
+            </section>
+
+            <section>
+                <h3 class="font-semibold mb-1">Treadling</h3>
+                <div id="treadling" class="grid gap-[3px]"></div>
+            </section>
         </div>
 
-        <!-- Top Right -->
-        <div>
-            <h3>Threading</h3>
-            <div id="threading" class="grid"></div>
+        <!-- RIGHT COLUMN -->
+        <div class="flex flex-col gap-6 overflow-auto">
+
+            <section>
+                <h3 class="font-semibold mb-1">Threading</h3>
+                <div id="threading" class="grid gap-[3px]"></div>
+            </section>
+
+            <section>
+                <h3 class="font-semibold mb-1">Drawdown</h3>
+                <div id="drawdown" class="grid gap-[3px]"></div>
+            </section>
+
         </div>
 
-        <!-- Bottom Left -->
-        <div>
-            <h3>Treadling</h3>
-            <div id="treadling" class="grid"></div>
-        </div>
+        <section class="col-span-2 bg-gray-100 rounded-lg p-4 space-y-4">
+            <details class="bg-white border rounded p-3">
+                <summary class="font-semibold cursor-pointer">Expressions</summary>
 
-        <!-- Bottom Right -->
-        <div>
-            <h3>Drawdown</h3>
-            <div id="drawdown" class="grid"></div>
-        </div>
+                <div class="mt-3 space-y-3 text-sm">
+                    <div>
+                        <label class="block font-medium">Threading (w)</label>
+                        <input id="exprThreading" class="border px-2 py-1 w-full font-mono" value="w">
+                        <button id="applyThreading" class="mt-1 px-2 py-1 bg-blue-600 text-white rounded">Apply</button>
+                    </div>
 
-    </div>
-    <hr />
-    <div>
-        <button id="sendPick">Send</button>
-        <button id="prevPick">Prev</button>
-        <button id="nextPick">Next</button>
-    </div>
-    <div>
-        <button id="saveWIF">Save</button>
-        <input type="file" id="loadWIF" accept=".txt">
-    </div>
-    <hr />
-    <div>
-        <details>
-            <summary>Expressions</summary>
-            Threading expression (w):<br />
-            <input id="exprThreading" type="text" value="w">
-            <button id="applyThreading">Apply</button><br> <br />
-            e.g.:
-            <ul>
-                <li>direct threading: w</li>
-                <li>point threading: abs((w%((SHAFTS-1)*2))-(SHAFTS-1))</li>
-            </ul>
+                    <div>
+                        <label class="block font-medium">Tie-up (t, s)</label>
+                        <input id="exprTieup" class="border px-2 py-1 w-full font-mono" value="(s+t)%2">
+                        <button id="applyTieup" class="mt-1 px-2 py-1 bg-blue-600 text-white rounded">Apply</button>
+                    </div>
 
-            Tie-up expression (t, s):<br />
-            <input id="exprTieup" type="text" value="(s+t)%2">
-            <button id="applyTieup">Apply</button><br>
+                    <div>
+                        <label class="block font-medium">Treadling (p, t)</label>
+                        <input id="exprTreadling" class="border px-2 py-1 w-full font-mono" value="(p+t)%2">
+                        <button id="applyTreadling" class="mt-1 px-2 py-1 bg-blue-600 text-white rounded">Apply</button>
+                    </div>
+                </div>
+            </details>
 
-            Treadling expression (p, t):<br />
-            <input id="exprTreadling" type="text" value="(p+t)%2">
-            <button id="applyTreadling">Apply</button>
-        </details>
-        <details>
-            <summary>Copy+Paste</summary>
-            <br><br>
-            <b>Paste 0/1 grids</b><br>
+            <details class="bg-white border rounded p-3">
+                <summary class="font-semibold cursor-pointer">Copy + Paste</summary>
 
-            Threading (shafts × warps):<br>
-            <textarea id="txtThreading" rows="4" cols="60"></textarea>
-            <button id="applyTxtThreading">Apply</button><br><br>
+                <div class="mt-3 space-y-3 text-sm">
+                    <div>
+                        <label class="block font-medium">Threading</label>
+                        <textarea id="txtThreading" class="w-full border font-mono text-xs p-1 h-20"></textarea>
+                        <button id="applyTxtThreading"
+                            class="mt-1 px-2 py-1 bg-gray-800 text-white rounded">Apply</button>
+                    </div>
 
-            Tie-up (treadles × shafts):<br>
-            <textarea id="txtTieup" rows="4" cols="40"></textarea>
-            <button id="applyTxtTieup">Apply</button><br><br>
+                    <div>
+                        <label class="block font-medium">Tie-Up</label>
+                        <textarea id="txtTieup" class="w-full border font-mono text-xs p-1 h-16"></textarea>
+                        <button id="applyTxtTieup" class="mt-1 px-2 py-1 bg-gray-800 text-white rounded">Apply</button>
+                    </div>
 
-            Treadling (picks × treadles):<br>
-            <textarea id="txtTreadling" rows="4" cols="40"></textarea>
-            <button id="applyTxtTreadling">Apply</button>
-        </details>
+                    <div>
+                        <label class="block font-medium">Treadling</label>
+                        <textarea id="txtTreadling" class="w-full border font-mono text-xs p-1 h-16"></textarea>
+                        <button id="applyTxtTreadling"
+                            class="mt-1 px-2 py-1 bg-gray-800 text-white rounded">Apply</button>
+                    </div>
+                </div>
+            </details>
+        </section>
 
-    </div>
+    </main>
+
+
     <script>
         /* ================= CONFIG ================= */
         let params = new URLSearchParams(document.location.search);
