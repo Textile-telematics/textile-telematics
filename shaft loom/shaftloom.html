@@ -102,14 +102,53 @@
         <button id="saveWIF">Save</button>
         <input type="file" id="loadWIF" accept=".txt">
     </div>
+    <hr />
+    <div>
+        <details>
+            <summary>Expressions</summary>
+            Threading expression (w):<br />
+            <input id="exprThreading" type="text" value="w">
+            <button id="applyThreading">Apply</button><br> <br />
+            e.g.:
+            <ul>
+                <li>direct threading: w</li>
+                <li>point threading: abs((w%((SHAFTS-1)*2))-(SHAFTS-1))</li>
+            </ul>
 
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+            Tie-up expression (t, s):<br />
+            <input id="exprTieup" type="text" value="(s+t)%2">
+            <button id="applyTieup">Apply</button><br>
+
+            Treadling expression (p, t):<br />
+            <input id="exprTreadling" type="text" value="(p+t)%2">
+            <button id="applyTreadling">Apply</button>
+        </details>
+        <details>
+            <summary>Copy+Paste</summary>
+            <br><br>
+            <b>Paste 0/1 grids</b><br>
+
+            Threading (shafts × warps):<br>
+            <textarea id="txtThreading" rows="4" cols="60"></textarea>
+            <button id="applyTxtThreading">Apply</button><br><br>
+
+            Tie-up (treadles × shafts):<br>
+            <textarea id="txtTieup" rows="4" cols="40"></textarea>
+            <button id="applyTxtTieup">Apply</button><br><br>
+
+            Treadling (picks × treadles):<br>
+            <textarea id="txtTreadling" rows="4" cols="40"></textarea>
+            <button id="applyTxtTreadling">Apply</button>
+        </details>
+
+    </div>
     <script>
         /* ================= CONFIG ================= */
-        const SHAFTS = 8;
-        const TREADLES = 6;
-        const WARPS = 32;
-        const PICKS = 6;
+        let params = new URLSearchParams(document.location.search);
+        const SHAFTS = parseInt(params.get("shafts")) || 8;
+        const TREADLES = parseInt(params.get("treadles")) || 8;
+        const PICKS = parseInt(params.get("picks")) || 12;
+        const WARPS = parseInt(params.get("warps")) || 32;
 
         let active_weft = 0;
 
@@ -134,6 +173,7 @@
         const client = mqtt.connect(MQTT_URL, { username: "alpaca", password: mqtt_password });
         client.on('connect', () => {
             client.subscribe(TOPIC);
+            client.subscribe("/tc2/footswitch")
             if (password_entered) {
                 document.cookie = 'mqtt_pass=' + mqtt_password;
             }
@@ -248,11 +288,10 @@
         }
 
         function update_active() {
-            const active = active_weft % PICKS;
+            const active = (PICKS - active_weft - 1) % PICKS;
             for (let i = 0; i < PICKS; ++i) {
                 const indicator = document.getElementById("indicator" + i);
-                if (i == active_weft) {
-                    console.log("aha")
+                if (i == active) {
                     indicator.classList.add("active");
                 }
                 else {
@@ -261,10 +300,27 @@
             }
         }
 
+        function advance(i) {
+            active_weft += i;
+            active_weft = active_weft % PICKS;
+            update_active();
+        }
+
         function send_active() {
+            const total_ends = 1320;
             let pattern = drawdown_rows[active_weft];
-            console.log("sending: " + pattern);
-            client.publish("/pattern", pattern);
+            const repeats = Math.floor(total_ends / pattern.length)
+            const selvedge = (total_ends - (repeats * pattern.length)) / 2;
+            const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+            const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+            const pick = left + pattern.repeat(repeats) + right;
+            // console.log("length: " + pick.length)
+            // console.log("left: " + left);
+            // console.log("right: " + right);
+            // console.log("repeats: " + repeats);
+            // console.log("selvedge: " + selvedge);
+            console.log("sending: " + pick);
+            client.publish("/pattern", pick);
         }
 
         // Convert grid data to WIF string
@@ -312,22 +368,50 @@
             send_active();
         };
         document.getElementById('nextPick').onclick = () => {
-            active_weft++;
-            if (active_weft >= PICKS) {
-                active_weft = 0;
-            }
-            update_active();
-            send_active();
+            advance(1)
+            // send_active();
         };
         document.getElementById('prevPick').onclick = () => {
-            active_weft--;
-            if (active_weft < 0) {
-                active_weft = PICKS - 1;
-            }
-            update_active();
-            send_active();
+            advance(-1)
+            // send_active();
         };
 
+        document.getElementById('applyThreading').onclick = () => {
+            const expr = document.getElementById('exprThreading').value;
+
+            try {
+                for (let w = 0; w < WARPS; w++) {
+                    const val = math.evaluate(expr, { w, PICKS, WARPS, SHAFTS });
+                    const shaft = Math.abs(Math.floor(val)) % SHAFTS;
+                    threading[w].fill(0);
+                    threading[w][shaft] = 1;
+                }
+                buildThreading(threadingDiv);
+                onDraftChange();
+            } catch (e) {
+                alert('Invalid expression');
+            }
+        };
+
+        document.getElementById('applyTieup').onclick = () => {
+            try {
+                for (let t = 0; t < TREADLES; t++)
+                    for (let s = 0; s < SHAFTS; s++)
+                        tieup[t][s] = !!math.evaluate(exprTieup.value, { t, s });
+                buildGrid(tieupDiv, TREADLES, SHAFTS, tieup);
+                onDraftChange();
+            } catch { alert('Tie-up expression error'); }
+        };
+
+        document.getElementById('applyTreadling').onclick = () => {
+            try {
+                for (let p = 0; p < PICKS; p++)
+                    for (let t = 0; t < TREADLES; t++)
+                        treadling[p][t] = !!math.evaluate(exprTreadling.value, { p, t });
+                buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+                onDraftChange();
+            } catch { alert('Treadling expression error'); }
+        };
 
         // Save WIF
         document.getElementById('saveWIF').onclick = () => {
@@ -350,6 +434,63 @@
             reader.readAsText(file);
         };
 
+        function parse01Grid(text, rows, cols) {
+            const lines = text.trim().split(/\r?\n/).map(l => l.replace(/\D/g, '')).filter(Boolean);
+            // if (lines.length !== rows) throw 'Row count mismatch';
+            window.lines = lines;
+            return lines.map(line => {
+                const vals = line.split('').map(v => v.trim());
+                // if (vals.length !== cols) throw 'Column count mismatch';
+                return vals.map(v => v === '1' ? 1 : 0);
+            });
+        }
+
+        applyTxtThreading.onclick = () => {
+            // try {
+            const grid = parse01Grid(txtThreading.value, SHAFTS, WARPS);
+
+            for (let w = 0; w < WARPS; w++) {
+                threading[w].fill(0);
+                for (let s = 0; s < SHAFTS; s++) {
+                    try {
+                        if (grid[s][w]) {
+                            threading[w][s] = 1;
+                            break; // enforce one shaft per warp
+                        }
+                    }
+                    catch (e) {
+
+                    }
+                }
+            }
+
+            buildThreading(threadingDiv);
+            onDraftChange();
+            // } catch (e) {
+            //     alert('Invalid threading grid', e);
+            // }
+        };
+
+        applyTxtTieup.onclick = () => {
+            try {
+                tieup = parse01Grid(txtTieup.value, SHAFTS, TREADLES);
+                buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
+                onDraftChange();
+            } catch (e) {
+                alert('Invalid tie-up grid');
+            }
+        };
+
+        applyTxtTreadling.onclick = () => {
+            try {
+                treadling = parse01Grid(txtTreadling.value, PICKS, TREADLES);
+                buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+                onDraftChange();
+            } catch (e) {
+                alert('Invalid treadling grid');
+            }
+        };
+
         /* ================= INIT ================= */
         const threadingDiv = document.getElementById('threading');
         const tieupDiv = document.getElementById('tieup');
@@ -362,18 +503,26 @@
         drawDrawdown();
 
         /* ================= MQTT RECEIVE ================= */
-        client.on('message', (_, msg) => {
-            const data = JSON.parse(msg.toString());
-            if (!data.threading) return;
+        client.on('message', (topic, msg) => {
 
-            threading = data.threading;
-            tieup = data.tieup;
-            treadling = data.treadling;
+            if (topic == "weaving/draft/full") {
+                const data = JSON.parse(msg.toString());
+                if (!data.threading) return;
 
-            buildThreading(threadingDiv);
-            buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
-            buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
-            drawDrawdown();
+                threading = data.threading;
+                tieup = data.tieup;
+                treadling = data.treadling;
+
+                buildThreading(threadingDiv);
+                buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
+                buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+                drawDrawdown();
+            }
+            else if (topic == "/tc2/footswitch") {
+                console.log("footswitch!")
+                send_active();
+                advance(1);
+            }
         });
     </script>
 </body>
