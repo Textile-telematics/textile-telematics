@@ -153,7 +153,7 @@
         const PICKS = parseInt(params.get("picks")) || 12;
         const WARPS = parseInt(params.get("warps")) || 32;
 
-        let active_weft = 0;
+        let active_weft = PICKS-1;
 
         let drawdown_rows = [];
 
@@ -291,7 +291,8 @@
         }
 
         function update_active() {
-            const active = (PICKS - active_weft - 1) % PICKS;
+            // const active = (PICKS - active_weft - 1) % PICKS;
+            const active = active_weft;
             for (let i = 0; i < PICKS; ++i) {
                 const indicator = document.getElementById("indicator" + i);
                 if (i == active) {
@@ -304,7 +305,7 @@
         }
 
         function advance(i) {
-            active_weft += i;
+            active_weft -= i;
             active_weft = active_weft % PICKS;
             update_active();
         }
