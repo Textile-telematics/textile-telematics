@@ -46,7 +46,9 @@
         <h2 class="text-2xl font-semibold mb-3">Weaving Draft</h2>
 
         <div class="flex flex-wrap gap-2 items-center">
-            <button id="startTC2" class="px-3 py-1 bg-blue-600 text-white rounded">Start</button>
+            <button id="testMode" class="px-3 py-1 bg-red-600 text-white rounded">Enter Test Mode</button>
+            <button id="standardMode" class="px-3 py-1 bg-red-600 text-white rounded hidden">Enter Standard Mode</button>
+            <button id="footswitchTest" class="px-3 py-1 bg-red-600 text-white rounded hidden">Foodswitch</button>
             <button id="sendPick" class="px-3 py-1 bg-blue-600 text-white rounded">Send</button>
             <button id="prevPick" class="px-3 py-1 bg-gray-700 text-white rounded">Prev</button>
             <button id="nextPick" class="px-3 py-1 bg-gray-700 text-white rounded">Next</button>
@@ -154,7 +156,11 @@
         const PICKS = parseInt(params.get("picks")) || 12;
         const WARPS = parseInt(params.get("warps")) || 32;
 
-        let active_weft = PICKS;
+        let active_weft = PICKS-1;
+
+        // test mode off by default
+        let testmode_status = false;
+        let testmode_prefix = "";
 
         let drawdown_rows = [];
 
@@ -177,7 +183,9 @@
         const client = mqtt.connect(MQTT_URL, { username: "alpaca", password: mqtt_password });
         client.on('connect', () => {
             client.subscribe(TOPIC);
-            client.subscribe("/tc2/footswitch")
+            client.subscribe("tc2/footswitch");
+            client.subscribe(("test/"+TOPIC));
+            client.subscribe("test/tc2/footswitch");
             if (password_entered) {
                 document.cookie = 'mqtt_pass=' + mqtt_password;
             }
@@ -198,7 +206,8 @@
 
         /* ================= HELPERS ================= */
         function publish() {
-            client.publish(TOPIC, JSON.stringify({ threading, tieup, treadling }));
+            console.log("testmode_Prefix:"+testmode_prefix);
+            client.publish((testmode_prefix+TOPIC), JSON.stringify({ threading, tieup, treadling }));
         }
 
         function onDraftChange() {
@@ -291,6 +300,8 @@
             update_active();
         }
 
+        // Actions
+
         function update_active() {
             // const active = (PICKS - active_weft - 1) % PICKS;
             const active = active_weft;
@@ -311,31 +322,29 @@
             update_active();
         }
 
-        function send_dummy_start(){
-            advance(1);
-            send_active();
+        function footswitch_test(){
+            client.publish((testmode_prefix+"tc2/footswitch"))
+            // advance(1);
+            // send_active();
         }
 
-        // function send_dummy_start(){
-        //     //sending the first line from the pattern queue
-        //     const total_ends = 1320;
-        //     let pattern = drawdown_rows[active_weft];
-        //     const repeats = Math.floor(total_ends / pattern.length)
-        //     const selvedge = (total_ends - (repeats * pattern.length)) / 2;
-        //     const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => 1).join(""); //for debugging
-        //     //const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
-        //     const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => 1).join(""); //for debugging
-        //     //const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
-        //
-        //     const pick = left + pattern.repeat(repeats) + right;
-        //     // console.log("length: " + pick.length)
-        //     // console.log("left: " + left);
-        //     // console.log("right: " + right);
-        //     // console.log("repeats: " + repeats);
-        //     // console.log("selvedge: " + selvedge);
-        //     console.log("sending: " + pick);
-        //     client.publish("/pattern", pick);
-        // }
+        function test_mode(set_testmode){
+            if(set_testmode){
+                testmode_status = true;
+                testmode_prefix = "test/";
+                document.getElementById("footswitchTest").classList.remove("hidden");
+                document.getElementById("standardMode").classList.remove("hidden");
+                document.getElementById("testMode").classList.add("hidden");
+            }else{
+                testmode_status = false;
+                testmode_prefix = "";
+                document.getElementById("footswitchTest").classList.add("hidden");
+                document.getElementById("standardMode").classList.add("hidden");
+                document.getElementById("testMode").classList.remove("hidden");
+            }
+
+        }
+
 
         function send_active() {
             const total_ends = 1320;
@@ -354,7 +363,7 @@
             // console.log("repeats: " + repeats);
             // console.log("selvedge: " + selvedge);
             console.log("sending: " + pick);
-            client.publish("/pattern", pick);
+            client.publish((testmode_prefix+"pattern"), pick);
         }
 
         // Convert grid data to WIF string
@@ -392,14 +401,21 @@
                 buildThreading(threadingDiv);
                 buildGrid(tieupDiv, SHAFTS, TREADLES, tieup);
                 buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
+                publish(); //push to other clients
                 drawDrawdown();
             } else {
                 alert("Invalid WIF file");
             }
         }
 
-        document.getElementById('startTC2').onclick = () => {
-            send_dummy_start();
+        document.getElementById('footswitchTest').onclick = () => {
+            footswitch_test();
+        };
+        document.getElementById('testMode').onclick = () => {
+            test_mode(true);
+        };
+        document.getElementById('standardMode').onclick = () => {
+            test_mode(false);
         };
         document.getElementById('sendPick').onclick = () => {
             send_active();
@@ -542,7 +558,7 @@
         /* ================= MQTT RECEIVE ================= */
         client.on('message', (topic, msg) => {
 
-            if (topic == "weaving/draft/full") {
+            if (topic == (testmode_prefix+"weaving/draft/full")) {
                 const data = JSON.parse(msg.toString());
                 if (!data.threading) return;
 
@@ -555,7 +571,7 @@
                 buildGrid(treadlingDiv, PICKS, TREADLES, treadling);
                 drawDrawdown();
             }
-            else if (topic == "/tc2/footswitch") {
+            else if (topic == (testmode_prefix+"tc2/footswitch")) {
                 console.log("footswitch!")
                 advance(1);
                 send_active();

@@ -30,7 +30,8 @@ mqtt_username = args.username or "tue"
 mqtt_password = args.password
 mqtt_port = 1883
 
-subscribe_topics = ["/pattern", "/pattern/json", "/tc2/request-status", "/tc2/stop", "/tc2/footswitch"]
+subscribe_topics = ["pattern", "pattern/json", "tc2/request-status", "tc2/stop", "weaving/draft/full",
+                    "test/tc2/footswitch","test/pattern", "test/pattern/json", "test/tc2/request-status", "test/tc2/stop", "test/tc2/footswitch","test/weaving/draft/full"]
 
 ## mqtt connect
 

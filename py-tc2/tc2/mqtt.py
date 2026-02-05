@@ -33,7 +33,7 @@ mqtt_username = args.username or "tue"
 mqtt_password = args.password
 mqtt_port = 1883
 
-subscribe_topics = ["/pattern", "/pattern/json", "/tc2/request-status", "/tc2/stop"]
+subscribe_topics = ["pattern", "pattern/json", "tc2/request-status", "tc2/stop"]
 
 ## mqtt connect
 
@@ -47,15 +47,15 @@ def on_message(client, userdata, msg):
     topic = msg.topic
     data = msg.payload.decode()
     match topic:
-        case "/pattern":
+        case "pattern":
             print("/pattern", data)
             tc2.queue(map(lambda x: x == '1', list(data)))
-        case "/pattern/json":
-            print("/pattern/json", json.loads(data))
+        case "pattern/json":
+            print("pattern/json", json.loads(data))
             tc2.queue(json.loads(data))
-        case "/tc2/request-status":
-            mqttc.publish("/tc2/status", json.dumps(tc2.status))
-        case "/tc2/stop":
+        case "tc2/request-status":
+            mqttc.publish("tc2/status", json.dumps(tc2.status))
+        case "tc2/stop":
             tc2.stop()
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -65,7 +65,7 @@ mqttc.username_pw_set(username=mqtt_username, password=mqtt_password)
 mqttc.connect(mqtt_host, mqtt_port, 60)
 
 
-tc2.on_footswitch = lambda d: mqttc.publish("/tc2/footswitch", json.dumps(d))
+tc2.on_footswitch = lambda d: mqttc.publish("tc2/footswitch", json.dumps(d))
 tc2.connect()
 
 print("Waiting for data..")
@@ -78,5 +78,5 @@ while run:
     # blocks for up to 1/20th of a second
     status_changed = tc2.poll(0.05)
     if status_changed:
-        mqttc.publish("/tc2/status", json.dumps(tc2.status()))
+        mqttc.publish("tc2/status", json.dumps(tc2.status()))
 
