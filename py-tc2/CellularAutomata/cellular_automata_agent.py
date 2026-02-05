@@ -31,7 +31,7 @@ parser.add_argument("--interval")
 args=parser.parse_args()
 
 
-interval = args.interval or 2.0   # seconds
+interval = args.interval or 5.0   # seconds
 last_call = time.monotonic()
 
 mqtt_host = args.host or "slab.org"

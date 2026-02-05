@@ -4,13 +4,39 @@ from PIL import Image
 import paho.mqtt.client as mqtt
 import os
 import credentials
+from datetime import datetime
+import argparse
+from pathlib import Path
 
-fn = "log1.png"
+parser=argparse.ArgumentParser()
+parser.add_argument("--host")
+parser.add_argument("--port")
+parser.add_argument("--username")
+parser.add_argument("--password")
+parser.add_argument("--test")
+args=parser.parse_args()
+
+mqtt_host = args.host or "slab.org"
+mqtt_username = args.username or "tue"
+mqtt_password = args.password
+mqtt_port = 1883
+
+is_test = args.test
+
+testmode_prefix = "test/" if is_test else ""
+
+
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+fn = f"records/{timestamp}.png"
 width = 1320
 height = 1
 black = (0,0,0,255)
 white = (255,255,255,255)
 image = None
+
+topic = f"{testmode_prefix}pattern"
+
 
 def add_line(row):
     global image
@@ -35,20 +61,26 @@ def add_line(row):
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
     #client.subscribe("/tc2/footswitch")
-    client.subscribe("pattern")
+    client.subscribe(topic)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
-    if msg.topic == 'pattern':
+    if msg.topic == topic:
         add_line(list(str(msg.payload)))
+
+# mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+# mqttc.on_connect = on_connect
+# mqttc.on_message = on_message
+# mqttc.username_pw_set(username=credentials.mqtt_username,password=credentials.mqtt_password)
+# #mqttc.tls_set()
+# mqttc.connect(credentials.mqtt_server, 1883, 60)
 
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
-mqttc.username_pw_set(username=credentials.mqtt_username,password=credentials.mqtt_password)
-#mqttc.tls_set()
-mqttc.connect(credentials.mqtt_server, 1883, 60)
+mqttc.username_pw_set(username=mqtt_username, password=mqtt_password)
+mqttc.connect(mqtt_host, mqtt_port, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
