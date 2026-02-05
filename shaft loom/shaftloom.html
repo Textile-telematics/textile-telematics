@@ -49,6 +49,8 @@
             <button id="testMode" class="px-3 py-1 bg-red-600 text-white rounded">Enter Test Mode</button>
             <button id="standardMode" class="px-3 py-1 bg-red-600 text-white rounded hidden">Enter Standard Mode</button>
             <button id="footswitchTest" class="px-3 py-1 bg-red-600 text-white rounded hidden">Foodswitch</button>
+            <button id="caStart" class="px-3 py-1 bg-red-600 text-white rounded hidden">CA Start</button>
+            <button id="caStop" class="px-3 py-1 bg-red-600 text-white rounded hidden">CA Stop</button>
             <button id="sendPick" class="px-3 py-1 bg-blue-600 text-white rounded">Send</button>
             <button id="prevPick" class="px-3 py-1 bg-gray-700 text-white rounded">Prev</button>
             <button id="nextPick" class="px-3 py-1 bg-gray-700 text-white rounded">Next</button>
@@ -186,6 +188,10 @@
             client.subscribe("tc2/footswitch");
             client.subscribe(("test/"+TOPIC));
             client.subscribe("test/tc2/footswitch");
+            client.subscribe("test/ca/start");
+            client.subscribe("ca/start");
+            client.subscribe("test/ca/stop");
+            client.subscribe("ca/stop");
             if (password_entered) {
                 document.cookie = 'mqtt_pass=' + mqtt_password;
             }
@@ -332,19 +338,37 @@
             if(set_testmode){
                 testmode_status = true;
                 testmode_prefix = "test/";
-                document.getElementById("footswitchTest").classList.remove("hidden");
-                document.getElementById("standardMode").classList.remove("hidden");
+                document.getElementById("footswitchTest").classList.toggle("hidden", false);
+                document.getElementById("standardMode").classList.toggle("hidden", false);
                 document.getElementById("testMode").classList.add("hidden");
+                document.getElementById("caStart").classList.toggle("hidden", false);
+                document.getElementById("caStop").classList.add("hidden");
             }else{
                 testmode_status = false;
                 testmode_prefix = "";
-                document.getElementById("footswitchTest").classList.add("hidden");
-                document.getElementById("standardMode").classList.add("hidden");
-                document.getElementById("testMode").classList.remove("hidden");
+                ca_activate(false); //stop the CA if it's running
+                document.getElementById("footswitchTest").classList.toggle("hidden", true);
+                document.getElementById("standardMode").classList.toggle("hidden", true);
+                document.getElementById("testMode").classList.toggle("hidden", false);
+                document.getElementById("caStart").classList.toggle("hidden", true);
+                document.getElementById("caStop").classList.toggle("hidden", true);
             }
 
         }
 
+        function ca_activate(ca_status){
+            if(ca_status){
+                publish(); //push the current pattern to CA
+                client.publish((testmode_prefix+"ca/start"));
+                document.getElementById("caStart").classList.toggle("hidden", true);
+                document.getElementById("caStop").classList.toggle("hidden", false);
+            }else{
+                client.publish((testmode_prefix+"ca/stop"));
+                document.getElementById("caStart").classList.toggle("hidden", false);
+                document.getElementById("caStop").classList.toggle("hidden", true);
+            }
+
+        }
 
         function send_active() {
             const total_ends = 1320;
@@ -416,6 +440,13 @@
         };
         document.getElementById('standardMode').onclick = () => {
             test_mode(false);
+        };
+        document.getElementById('caStart').onclick = () => {
+            ca_activate(true);
+        };
+        document.getElementById('caStop').onclick = () => {
+            ca_activate(false);
+
         };
         document.getElementById('sendPick').onclick = () => {
             send_active();

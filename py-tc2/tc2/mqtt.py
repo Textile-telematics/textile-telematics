@@ -48,7 +48,8 @@ def on_message(client, userdata, msg):
     data = msg.payload.decode()
     match topic:
         case "pattern":
-            print("/pattern", data)
+            print("pattern", data)
+            # need to make it not queueing, but only sending the newest line.
             tc2.queue(map(lambda x: x == '1', list(data)))
         case "pattern/json":
             print("pattern/json", json.loads(data))
