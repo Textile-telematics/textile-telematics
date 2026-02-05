@@ -48,7 +48,7 @@ mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 mqttc.username_pw_set(username=mqtt_username, password=mqtt_password)
 mqttc.connect(mqtt_host, mqtt_port, 60)
-mqttc.publish("/tc2/footswitch","0")
+# mqttc.publish("/tc2/footswitch","0")
 
 print("Waiting for data..")
 run = True

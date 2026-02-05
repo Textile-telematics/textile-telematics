@@ -46,6 +46,7 @@
         <h2 class="text-2xl font-semibold mb-3">Weaving Draft</h2>
 
         <div class="flex flex-wrap gap-2 items-center">
+            <button id="startTC2" class="px-3 py-1 bg-blue-600 text-white rounded">Start</button>
             <button id="sendPick" class="px-3 py-1 bg-blue-600 text-white rounded">Send</button>
             <button id="prevPick" class="px-3 py-1 bg-gray-700 text-white rounded">Prev</button>
             <button id="nextPick" class="px-3 py-1 bg-gray-700 text-white rounded">Next</button>
@@ -310,13 +311,42 @@
             update_active();
         }
 
+        function send_dummy_start(){
+            advance(1);
+            send_active();
+        }
+
+        // function send_dummy_start(){
+        //     //sending the first line from the pattern queue
+        //     const total_ends = 1320;
+        //     let pattern = drawdown_rows[active_weft];
+        //     const repeats = Math.floor(total_ends / pattern.length)
+        //     const selvedge = (total_ends - (repeats * pattern.length)) / 2;
+        //     const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => 1).join(""); //for debugging
+        //     //const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+        //     const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => 1).join(""); //for debugging
+        //     //const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+        //
+        //     const pick = left + pattern.repeat(repeats) + right;
+        //     // console.log("length: " + pick.length)
+        //     // console.log("left: " + left);
+        //     // console.log("right: " + right);
+        //     // console.log("repeats: " + repeats);
+        //     // console.log("selvedge: " + selvedge);
+        //     console.log("sending: " + pick);
+        //     client.publish("/pattern", pick);
+        // }
+
         function send_active() {
             const total_ends = 1320;
             let pattern = drawdown_rows[active_weft];
             const repeats = Math.floor(total_ends / pattern.length)
             const selvedge = (total_ends - (repeats * pattern.length)) / 2;
+            //const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => 1).join(""); //for debugging
             const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+            //const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => 1).join(""); //for debugging
             const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+
             const pick = left + pattern.repeat(repeats) + right;
             // console.log("length: " + pick.length)
             // console.log("left: " + left);
@@ -368,6 +398,9 @@
             }
         }
 
+        document.getElementById('startTC2').onclick = () => {
+            send_dummy_start();
+        };
         document.getElementById('sendPick').onclick = () => {
             send_active();
         };
