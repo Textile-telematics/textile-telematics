@@ -36,6 +36,10 @@
         .active {
             background: red;
         }
+
+        .sent{
+            background: blue;
+        }
     </style>
 </head>
 
@@ -159,10 +163,12 @@
         const WARPS = parseInt(params.get("warps")) || 32;
 
         let active_weft = PICKS-1;
+        let last_sent_weft = PICKS-1;
 
         // test mode off by default
         let testmode_status = false;
         let testmode_prefix = "";
+        let ready_for_pattern = true;
 
         let drawdown_rows = [];
 
@@ -311,14 +317,22 @@
         function update_active() {
             // const active = (PICKS - active_weft - 1) % PICKS;
             const active = active_weft;
+            console.log("active_weft / last_sent_weft:"+active_weft+"/"+last_sent_weft);
             for (let i = 0; i < PICKS; ++i) {
                 const indicator = document.getElementById("indicator" + i);
-                if (i == active) {
-                    indicator.classList.add("active");
-                }
-                else {
-                    indicator.classList.remove("active");
-                }
+                indicator.classList.toggle("sent", i === last_sent_weft);
+                indicator.classList.toggle("active", i === active_weft);
+                //
+                // if(i == last_sent_weft) {
+                //         indicator.classList.add("sent");
+                // }else {
+                //         indicator.classList.remove("sent");
+                // }
+                // if (i == active) {
+                //     indicator.classList.add("active");
+                // }else {
+                //     indicator.classList.remove("active");
+                // }
             }
         }
 
@@ -371,23 +385,29 @@
         }
 
         function send_active() {
-            const total_ends = 1320;
-            let pattern = drawdown_rows[active_weft];
-            const repeats = Math.floor(total_ends / pattern.length)
-            const selvedge = (total_ends - (repeats * pattern.length)) / 2;
-            //const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => 1).join(""); //for debugging
-            const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
-            //const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => 1).join(""); //for debugging
-            const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => (i + active_weft) % 2).join("");
+            if(ready_for_pattern) {
+                const total_ends = 1320;
+                let pattern = drawdown_rows[active_weft];
+                const repeats = Math.floor(total_ends / pattern.length)
+                const selvedge = (total_ends - (repeats * pattern.length)) / 2;
+                //const left = Array.from({ length: Math.floor(selvedge) }, (_, i) => 1).join(""); //for debugging
+                const left = Array.from({length: Math.floor(selvedge)}, (_, i) => (i + active_weft) % 2).join("");
+                //const right = Array.from({ length: Math.ceil(selvedge) }, (_, i) => 1).join(""); //for debugging
+                const right = Array.from({length: Math.ceil(selvedge)}, (_, i) => (i + active_weft) % 2).join("");
 
-            const pick = left + pattern.repeat(repeats) + right;
-            // console.log("length: " + pick.length)
-            // console.log("left: " + left);
-            // console.log("right: " + right);
-            // console.log("repeats: " + repeats);
-            // console.log("selvedge: " + selvedge);
-            console.log("sending: " + pick);
-            client.publish((testmode_prefix+"pattern"), pick);
+                const pick = left + pattern.repeat(repeats) + right;
+                // console.log("length: " + pick.length)
+                // console.log("left: " + left);
+                // console.log("right: " + right);
+                // console.log("repeats: " + repeats);
+                // console.log("selvedge: " + selvedge);
+                console.log("sending: " + pick);
+                client.publish((testmode_prefix + "pattern"), pick);
+                ready_for_pattern = false; //pattern sent, can only receive new pattern if the footswitch has been pressed.
+                last_sent_weft = active_weft;
+            }else{
+                console.log("Pattern in queue, press footswitch first");
+            }
         }
 
         // Convert grid data to WIF string
@@ -605,6 +625,7 @@
             else if (topic == (testmode_prefix+"tc2/footswitch")) {
                 console.log("footswitch!")
                 advance(1);
+                ready_for_pattern = true;
                 send_active();
             }
         });
