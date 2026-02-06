@@ -3,7 +3,6 @@
 from PIL import Image
 import paho.mqtt.client as mqtt
 import os
-import credentials
 from datetime import datetime
 import argparse
 from pathlib import Path
@@ -27,8 +26,10 @@ testmode_prefix = "test/" if is_test else ""
 
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+path = Path("records")
+path.mkdir(parents=True, exist_ok=True)
 
-fn = f"records/{timestamp}.png"
+fn = f"{path}/{timestamp}.png"
 width = 1320
 height = 1
 black = (0,0,0,255)
