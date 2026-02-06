@@ -6,7 +6,7 @@ authors = ["Pei-Ying Lin", "Alex McLean"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = ">=3.10,<4.0"
 paho-mqtt = "^2.1.0"
 
 [build-system]
