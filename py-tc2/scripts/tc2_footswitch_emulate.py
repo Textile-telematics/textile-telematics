@@ -13,9 +13,11 @@
 # GNU General Public License for more details.
 # <http://www.gnu.org/licenses/>.
 
-import socket, re, random, sys
+# This is just a listening script for debugging
+
+
 import paho.mqtt.client as mqtt
-import argparse, json
+import argparse
 
 
 parser=argparse.ArgumentParser()
